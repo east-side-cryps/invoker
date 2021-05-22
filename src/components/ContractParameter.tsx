@@ -9,7 +9,7 @@ export default function ContractParameter(props: any ) {
                 <FormLabel style={props.formLabelStyle}>{props.formLabelText}</FormLabel>
                 <Input
                     style={props.inputStyle}
-                    onChange={(e) => props.changeFunc(e.target.value)}/>
+                    onChange={props.changeFunc}/>
             </FormControl>
     );
 }

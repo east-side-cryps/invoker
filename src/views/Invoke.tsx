@@ -3,6 +3,7 @@ import {useHistory} from "react-router-dom";
 import {Contract} from "../types/Contract";
 import {Manifest} from "../types/Manifest";
 import {ABI} from "../types/ABI";
+import {Parameter} from "../types/Parameter";
 import axios from 'axios';
 import {
     Flex,
@@ -10,12 +11,6 @@ import {
     Text,
     FormControl,
     Select,
-    Input,
-    NumberInput,
-    NumberInputField,
-    NumberInputStepper,
-    NumberIncrementStepper,
-    NumberDecrementStepper,
     FormLabel, Button, useToast
 } from "@chakra-ui/react";
 import {useWalletConnect} from "../context/WalletConnectContext";
@@ -36,7 +31,7 @@ const formControlStyle = {
 }
 
 const formLabelStyle = {
-    color: "#004e87", fontSize: "0.8rem", margin: 0
+    color: "#004e87", fontSize: "1.1rem", margin: 0
 }
 const inputStyle = {
     border: "solid 1px #0094ff",
@@ -80,9 +75,8 @@ export default function Invoke() {
 
     const n3Helper = new N3Helper(DEFAULT_NEO_RPC_ADDRESS, DEFAULT_NEO_NETWORK_MAGIC)
 
-    const [recipientAddress, setRecipientAddress] = useState('')
     const [abi, setAbi] = useState<ABI | undefined>()
-    const [contractFunction, setFunction] = useState('')
+    const [contractParams, setContractParams] = useState<Parameter[] | undefined>()
     const contracts = useStateSync([])
     const [loading, setLoading] = useState<string | null>('Checking WalletConnect Session')
 
@@ -139,13 +133,23 @@ export default function Invoke() {
     const selectAbi = (e) => {
         axios.get<ContractResponse>('https://dora.coz.io/api/v1/neo3/testnet/contract/' + e.target.value)
         .then((response) => {
-            console.log("ABI: " + JSON.stringify(response.data.manifest.abi))
+            //console.log("ABI: " + JSON.stringify(response.data.manifest.abi))
             setAbi(response.data.manifest.abi)
         })
     }
 
     const selectFunction = (e) => {
-        setFunction(e.target.value) 
+        const methods = abi?.methods;
+        methods?.forEach(method => {
+            if (method.name === e.target.value) {
+                console.log(`Setting contract parameter array for ${method.name}: ${JSON.stringify(method.parameters)}`)
+                setContractParams(method.parameters) 
+            }
+        })
+    }
+
+    const setParameterValue = (e) => {
+        console.log(`Set: ${e.target.name} -> ${e.target.value}`)
     }
 
     const invoke = async () => {
@@ -158,6 +162,7 @@ export default function Invoke() {
 
         const resp = await walletConnectCtx.rpcRequest({
             method: 'invokefunction',
+            // assemble params from form according to ABI
             params: [gasScriptHash, 'transfer', ['', '', 0, []]],
         })
 
@@ -189,16 +194,17 @@ export default function Invoke() {
             <FormControl style={formControlStyle} isRequired>
               <FormLabel style={formLabelStyle}>Function</FormLabel>
               <Select style={inputStyle} placeholder="Select" onChange={selectFunction}>
-              { abi?.hasOwnProperty('methods') && abi.methods.map((method) =>
-                <option key={method.name} value="{method.name}">{method.name}</option> 
+              { abi?.hasOwnProperty('methods') && abi.methods.map((method, index) =>
+                <option key={index} value={method.name}>{method.name}</option> 
               )}
               </Select>
             </FormControl>
-            <ContractParameter parameterType={ContractParameterType.String} formLabelText="from" formControlStyle={formControlStyle} formLabelStyle={formLabelStyle} inputStyle={inputStyle} changeFunc={(e) => setRecipientAddress(e.target.value)} />
-            <ContractParameter parameterType={ContractParameterType.String} formLabelText="to" formControlStyle={formControlStyle} formLabelStyle={formLabelStyle} inputStyle={inputStyle} changeFunc={(e) => setRecipientAddress(e.target.value)} />
-            <ContractParameter parameterType={ContractParameterType.String} formLabelText="amount" formControlStyle={formControlStyle} formLabelStyle={formLabelStyle} inputStyle={inputStyle} changeFunc={(e) => setRecipientAddress(e.target.value)} />
-            <ContractParameter parameterType={ContractParameterType.String} formLabelText="data" formControlStyle={formControlStyle} formLabelStyle={formLabelStyle} inputStyle={inputStyle} changeFunc={(e) => setRecipientAddress(e.target.value)} />
-            <Button type="submit" w="100%" maxWidth="35rem" bg="#0094ff" textColor="white" fontSize="2rem" h="4rem"
+            { contractParams?.map((param, index) => 
+            <ContractParameter key={index} parameterType={param.type} formLabelText={param.name} 
+                formControlStyle={formControlStyle} formLabelStyle={formLabelStyle} 
+                inputStyle={inputStyle} changeFunc={setParameterValue} />
+            )}
+             <Button type="submit" w="100%" maxWidth="35rem" bg="#0094ff" textColor="white" fontSize="2rem" h="4rem"
                     mb="2rem"
                     _hover={{backgroundColor: '#0081dc'}}>
                 Invoke 

@@ -131,6 +131,7 @@ export default function Invoke() {
     }
 
     const selectAbi = (e) => {
+        setContractParams([])
         axios.get<ContractResponse>('https://dora.coz.io/api/v1/neo3/testnet/contract/' + e.target.value)
         .then((response) => {
             //console.log("ABI: " + JSON.stringify(response.data.manifest.abi))
@@ -195,7 +196,7 @@ export default function Invoke() {
               <FormLabel style={formLabelStyle}>Function</FormLabel>
               <Select style={inputStyle} placeholder="Select" onChange={selectFunction}>
               { abi?.hasOwnProperty('methods') && abi.methods.map((method, index) =>
-                <option key={index} value={method.name}>{method.name}</option> 
+                <option key={`${index}-${method.name}`} value={method.name}>{method.name}</option> 
               )}
               </Select>
             </FormControl>

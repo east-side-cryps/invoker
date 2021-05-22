@@ -1,4 +1,6 @@
+import {ABI} from "./ABI"
+
 export interface Manifest {
   name: string;
-  abi: Object;
+  abi: ABI;
 }

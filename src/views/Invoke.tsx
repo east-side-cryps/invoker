@@ -79,6 +79,9 @@ export default function Invoke() {
     const [contractParams, setContractParams] = useState<Parameter[] | undefined>()
     const contracts = useStateSync([])
     const [loading, setLoading] = useState<string | null>('Checking WalletConnect Session')
+    const [invokeParams, setInvokeParams] = useState({})
+    const [methodName, setMethodName] = useState('')
+    const [contractHash, setContractHash] = useState('')
 
     useEffect(() => {
         if (!walletConnectCtx?.loadingSession) {
@@ -118,20 +121,18 @@ export default function Invoke() {
 
         const txId = await invoke()
         if (!txId) return
-        setLoading('Validating Result')
-        const notification = (await n3Helper.getNotificationsFromTxId(txId))
-            .find((n: any) => n.contract === DEFAULT_SC_SCRIPTHASH && n.eventname === 'StreamCreated')
+        setLoading('Waiting on transaction to persist...')
+        const notification = await n3Helper.getNotificationsFromTxId(txId)
         if (!notification) return
-        const hexstring = ((notification.state.value as ContractParamJson[])[0].value as string)
-        const json = atob(hexstring)
-        const data = JSON.parse(json)
-        if (!data) return
+        // display application log
+        console.log(JSON.stringify(notification))
         setLoading(null)
-        history.push(`/stream/${data.id}`)
     }
 
     const selectAbi = (e) => {
         setContractParams([])
+        setMethodName('')
+        setContractHash(e.target.value)
         axios.get<ContractResponse>('https://dora.coz.io/api/v1/neo3/testnet/contract/' + e.target.value)
         .then((response) => {
             //console.log("ABI: " + JSON.stringify(response.data.manifest.abi))
@@ -144,13 +145,15 @@ export default function Invoke() {
         methods?.forEach(method => {
             if (method.name === e.target.value) {
                 console.log(`Setting contract parameter array for ${method.name}: ${JSON.stringify(method.parameters)}`)
-                setContractParams(method.parameters) 
+                setContractParams(method.parameters)
+                setMethodName(method.name)
             }
         })
     }
 
     const setParameterValue = (e) => {
-        console.log(`Set: ${e.target.name} -> ${e.target.value}`)
+        const invokeParamName = e.target.attributes['data-param-name'].value
+        setInvokeParams({...invokeParams, [invokeParamName]: e.target.value})
     }
 
     const invoke = async () => {
@@ -158,13 +161,10 @@ export default function Invoke() {
 
         const [senderAddress] = walletConnectCtx.accounts[0].split("@")
 
-        const gasScriptHash = DEFAULT_GAS_SCRIPTHASH
-        const contractScriptHash = DEFAULT_SC_SCRIPTHASH
-
         const resp = await walletConnectCtx.rpcRequest({
             method: 'invokefunction',
             // assemble params from form according to ABI
-            params: [gasScriptHash, 'transfer', ['', '', 0, []]],
+            params: [contractHash, methodName, contractParams?.map(i => invokeParams[i.name].value)],
         })
 
         if (resp.result.error && resp.result.error.message) {
@@ -176,7 +176,7 @@ export default function Invoke() {
             })
             return null
         }
-
+        console.log("Invoke response:" + resp.result)
         return resp.result as string
     }
 
@@ -201,7 +201,7 @@ export default function Invoke() {
               </Select>
             </FormControl>
             { contractParams?.map((param, index) => 
-            <ContractParameter key={index} parameterType={param.type} formLabelText={param.name} 
+            <ContractParameter key={index} parameterType={param.type} formLabelText={param.name}
                 formControlStyle={formControlStyle} formLabelStyle={formLabelStyle} 
                 inputStyle={inputStyle} changeFunc={setParameterValue} />
             )}

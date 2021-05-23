@@ -159,14 +159,32 @@ export default function Invoke() {
 
     const invoke = async () => {
         if (!walletConnectCtx) return null
-
+    
         const [senderAddress] = walletConnectCtx.accounts[0].split("@")
 
-        const paramArray = contractParams?.map(i => invokeParams[i.name])
+        let paramArray = [] as any
 
+        if (contractParams) {
+            for (let i=0; i < contractParams?.length; i++) {
+                const paramType = contractParams[i].type
+                const paramName = contractParams[i].name
+                const paramValue = invokeParams[paramName]
+
+                if (paramType === "Hash160") {
+                    if (paramValue === "@me") {
+                        paramArray.push({type: "Address", value: senderAddress})
+                    } else if (/^N[A-Za-z0-9]{34}$/.test(paramValue)) {
+                        paramArray.push({type: "Address", value: paramValue})
+                    } else {
+                        paramArray.push({type: "ScriptHash", value: paramValue})
+                    }
+                } else {
+                    paramArray.push({type: paramType, value: paramValue})
+                }
+            }
+        }
         const resp = await walletConnectCtx.rpcRequest({
             method: 'invokefunction',
-            // assemble params from form according to ABI
             params: [contractHash, methodName, paramArray],
         })
 

@@ -46,6 +46,21 @@ export class N3Helper {
         return allNotifications
     }
 
+    getApplogFromTxId = async (txId: string) => {
+        console.log(`Getting applog for ${txId}`)
+        const rpcClient = new rpc.RPCClient(this.rpcAddress)
+        let appLog
+        do {
+            try {
+                appLog = await rpcClient.getApplicationLog(txId)
+            } catch (e) {
+                await this.sleep(5000)
+            }
+        } while (!appLog)
+        console.log(`Got applog: ${JSON.stringify(appLog)}`)
+        return appLog
+    }
+
     private sleep = (time: number) => {
         return new Promise(resolve => {
             setTimeout(resolve, time)

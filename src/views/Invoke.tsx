@@ -7,7 +7,15 @@ import {Parameter} from "../types/Parameter";
 import axios from 'axios';
 import {
     Flex,
+    Textarea,
+    ModalBody,
+    ModalCloseButton,
+    ModalHeader,
+    ModalOverlay,
+    ModalContent,
     Spacer,
+    Modal,
+    Spinner,
     Text,
     FormControl,
     Select,
@@ -80,6 +88,7 @@ export default function Invoke() {
     const [invokeParams, setInvokeParams] = useState({})
     const [methodName, setMethodName] = useState('')
     const [contractHash, setContractHash] = useState('')
+    const [applicationLog, setApplicationLog] = useState<any>()
 
     useEffect(() => {
         if (!walletConnectCtx?.loadingSession) {
@@ -114,20 +123,21 @@ export default function Invoke() {
     const handleSubmit = async (e: React.SyntheticEvent) => {
         e.preventDefault()
         if (!walletConnectCtx) return
-
         const txId = await invoke()
         if (!txId) return
         toast({
-            title: `Relayed transaction ${txId.slice(0,50)} ${txId.slice(50)}`,
+            title: `Relayed ${txId.slice(0,50)} ${txId.slice(50)}`,
             status: "success",
             duration: 10000,
             isClosable: true
         })
         setLoading('Waiting on transaction to persist...')
-        const notification = await n3Helper.getNotificationsFromTxId(txId)
-        if (!notification) return
-        // display application log
-        console.log(JSON.stringify(notification))
+        const applog = await n3Helper.getApplogFromTxId(txId)
+        if (!applog) {
+            setApplicationLog(JSON.stringify({'error': 'Application log not found'}, null, 1))
+        } else {
+            setApplicationLog(JSON.stringify(applog, null, 1))
+        }
         setLoading(null)
     }
 
@@ -201,9 +211,27 @@ export default function Invoke() {
         return resp.result as string
     }
 
+    const handleClose = () => {
+        console.log("modal close")
+        setApplicationLog(null)
+    }
+
     return (
         <Flex as="form" onSubmit={handleSubmit} direction="column" align="center" flex="1" w="100%" px="0.5rem">
-            {loading ? <><Spacer/><SpinnerWithMessage xl={true} message={loading} /><Spacer/></> : (<>
+            <Modal isOpen={loading != null || applicationLog != null} onClose={handleClose} size="xl">
+                <ModalOverlay/>
+                <ModalContent>
+                    <ModalHeader>{loading ? loading : "Transaction Log"}</ModalHeader>
+                    <ModalCloseButton/>
+                    <ModalBody>
+                        <Flex direction="column" align="center">
+                        {applicationLog ? <Textarea rows={20} height="auto" value={applicationLog} isReadOnly={true} size="lg" /> : (<>
+                            <Spacer/><SpinnerWithMessage xl={true} message="Loading" /><Spacer/>
+                        </>)}
+                        </Flex>
+                    </ModalBody>
+                </ModalContent>
+            </Modal>
             <Text color="#004e87" fontWeight="bold" fontSize="2rem" m="2rem">Invoke N3 Smart Contract</Text>
             <FormControl style={formControlStyle} isRequired>
               <FormLabel style={formLabelStyle}>Smart Contract</FormLabel>
@@ -229,10 +257,10 @@ export default function Invoke() {
              <Button type="submit" w="100%" maxWidth="35rem" bg="#0094ff" textColor="white" fontSize="2rem" h="4rem"
                     mb="2rem"
                     _hover={{backgroundColor: '#0081dc'}}>
+                {loading && <Spinner color="#0094FF" size='md' thickness='0.1rem' />}
                 Invoke 
             </Button>
             <Spacer/>
-            </>)}
         </Flex>
     )
 }

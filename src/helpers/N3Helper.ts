@@ -46,8 +46,17 @@ export class N3Helper {
         return allNotifications
     }
 
+    testInvoke = async (scripthash: string, method: string, params: any) => {
+        const rpcClient = new rpc.RPCClient(this.rpcAddress)
+        try {
+            const result = await rpcClient.invokeFunction(scripthash, method, params)
+            return(JSON.stringify(result, null, 1))
+        } catch (e) {
+            return("Error invoking function via RPC")
+        }
+    }
+
     getApplogFromTxId = async (txId: string) => {
-        console.log(`Getting applog for ${txId}`)
         const rpcClient = new rpc.RPCClient(this.rpcAddress)
         let appLog
         do {
@@ -57,7 +66,6 @@ export class N3Helper {
                 await this.sleep(5000)
             }
         } while (!appLog)
-        console.log(`Got applog: ${JSON.stringify(appLog)}`)
         return appLog
     }
 

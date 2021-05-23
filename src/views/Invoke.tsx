@@ -19,6 +19,7 @@ import {
     Text,
     FormControl,
     Select,
+    Switch,
     FormLabel, Button, useToast
 } from "@chakra-ui/react";
 import {useWalletConnect} from "../context/WalletConnectContext";
@@ -89,6 +90,7 @@ export default function Invoke() {
     const [methodName, setMethodName] = useState('')
     const [contractHash, setContractHash] = useState('')
     const [applicationLog, setApplicationLog] = useState<any>()
+    const [testMode, setTestMode] = useState(false)
 
     useEffect(() => {
         if (!walletConnectCtx?.loadingSession) {
@@ -123,22 +125,28 @@ export default function Invoke() {
     const handleSubmit = async (e: React.SyntheticEvent) => {
         e.preventDefault()
         if (!walletConnectCtx) return
-        const txId = await invoke()
-        if (!txId) return
-        toast({
-            title: `Relayed ${txId.slice(0,50)} ${txId.slice(50)}`,
-            status: "success",
-            duration: 10000,
-            isClosable: true
-        })
-        setLoading('Waiting on transaction to persist...')
-        const applog = await n3Helper.getApplogFromTxId(txId)
-        if (!applog) {
-            setApplicationLog(JSON.stringify({'error': 'Application log not found'}, null, 1))
+
+        if (testMode) {
+            const result = await invoke()
+            setApplicationLog(result)
         } else {
-            setApplicationLog(JSON.stringify(applog, null, 1))
+            const txId = await invoke()
+            if (!txId) return
+            toast({
+                title: `Relayed ${txId.slice(0,50)} ${txId.slice(50)}`,
+                status: "success",
+                duration: 12000,
+                isClosable: true
+            })
+            setLoading('Waiting on transaction to persist...')
+            const applog = await n3Helper.getApplogFromTxId(txId)
+            if (!applog) {
+                setApplicationLog(JSON.stringify({'error': 'Application log not found'}, null, 1))
+            } else {
+                setApplicationLog(JSON.stringify(applog, null, 1))
+            }
+            setLoading(null)
         }
-        setLoading(null)
     }
 
     const selectAbi = (e) => {
@@ -169,9 +177,7 @@ export default function Invoke() {
 
     const invoke = async () => {
         if (!walletConnectCtx) return null
-    
         const [senderAddress] = walletConnectCtx.accounts[0].split("@")
-
         let paramArray = [] as any
 
         if (contractParams) {
@@ -193,26 +199,34 @@ export default function Invoke() {
                 }
             }
         }
-        const resp = await walletConnectCtx.rpcRequest({
-            method: 'invokefunction',
-            params: [contractHash, methodName, paramArray],
-        })
-
-        if (resp.result.error && resp.result.error.message) {
-            toast({
-                title: resp.result.error.message,
-                status: "error",
-                duration: 10000,
-                isClosable: true,
+        if (testMode) {
+            const resp = await n3Helper.testInvoke(contractHash, methodName, paramArray)
+            return resp
+        } else {
+            const resp = await walletConnectCtx.rpcRequest({
+                method: 'invokefunction',
+                params: [contractHash, methodName, paramArray],
             })
-            return null
+
+            if (resp.result.error && resp.result.error.message) {
+                toast({
+                    title: resp.result.error.message,
+                    status: "error",
+                    duration: 12000,
+                    isClosable: true,
+                })
+                return null
+            }
+            console.log("Invoke response:" + resp.result)
+            return resp.result as string
         }
-        console.log("Invoke response:" + resp.result)
-        return resp.result as string
+    }
+
+    const handleSwitch = () => {
+        setTestMode(!testMode)
     }
 
     const handleClose = () => {
-        console.log("modal close")
         setApplicationLog(null)
     }
 
@@ -258,8 +272,10 @@ export default function Invoke() {
                     mb="2rem"
                     _hover={{backgroundColor: '#0081dc'}}>
                 {loading && <Spinner color="#0094FF" size='md' thickness='0.1rem' />}
-                Invoke 
+                Invoke
             </Button>
+            <Switch id="testinvoke" name="testinvoke" defaultChecked={false} size="lg" onChange={handleSwitch} />
+                Test mode
             <Spacer/>
         </Flex>
     )

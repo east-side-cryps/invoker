@@ -15,10 +15,8 @@ import {
 } from "@chakra-ui/react";
 import {useWalletConnect} from "../context/WalletConnectContext";
 import {
-    DEFAULT_GAS_SCRIPTHASH,
     DEFAULT_NEO_NETWORK_MAGIC,
     DEFAULT_NEO_RPC_ADDRESS,
-    DEFAULT_SC_SCRIPTHASH
 } from "../constants";
 import {ContractParamJson} from "@cityofzion/neon-core/lib/sc";
 import {N3Helper} from "../helpers/N3Helper";
@@ -97,11 +95,9 @@ export default function Invoke() {
             .then((response) => {
               const totalPages = Math.ceil(response.data.totalCount / 15)
               contracts.set(response.data.items)
-              console.log(`Got page 1 of contracts, retrieving ${totalPages} more pages...`)
               for (let i = 2; i <= totalPages; i++) {
                 axios.get<ContractsResponse>(`https://dora.coz.io/api/v1/neo3/testnet/contracts/${i}`)
                 .then((response) => {
-                    console.log("Contracts length is " + contracts.get().length)
                     contracts.set(contracts.get().concat(response.data.items))
                 })
                 .catch((error) => { console.log(error) })
@@ -121,6 +117,12 @@ export default function Invoke() {
 
         const txId = await invoke()
         if (!txId) return
+        toast({
+            title: `Relayed transaction ${txId.slice(0,50)} ${txId.slice(50)}`,
+            status: "success",
+            duration: 10000,
+            isClosable: true
+        })
         setLoading('Waiting on transaction to persist...')
         const notification = await n3Helper.getNotificationsFromTxId(txId)
         if (!notification) return
@@ -144,7 +146,6 @@ export default function Invoke() {
         const methods = abi?.methods;
         methods?.forEach(method => {
             if (method.name === e.target.value) {
-                console.log(`Setting contract parameter array for ${method.name}: ${JSON.stringify(method.parameters)}`)
                 setContractParams(method.parameters)
                 setMethodName(method.name)
             }
@@ -161,10 +162,12 @@ export default function Invoke() {
 
         const [senderAddress] = walletConnectCtx.accounts[0].split("@")
 
+        const paramArray = contractParams?.map(i => invokeParams[i.name])
+
         const resp = await walletConnectCtx.rpcRequest({
             method: 'invokefunction',
             // assemble params from form according to ABI
-            params: [contractHash, methodName, contractParams?.map(i => invokeParams[i.name].value)],
+            params: [contractHash, methodName, paramArray],
         })
 
         if (resp.result.error && resp.result.error.message) {

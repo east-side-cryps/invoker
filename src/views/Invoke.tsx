@@ -5,6 +5,7 @@ import {Manifest} from "../types/Manifest";
 import {ABI} from "../types/ABI";
 import {Parameter} from "../types/Parameter";
 import axios from 'axios';
+import {wallet} from "@cityofzion/neon-js";
 import {
     Flex,
     Textarea,
@@ -180,29 +181,49 @@ export default function Invoke() {
         const [senderAddress] = walletConnectCtx.accounts[0].split("@")
         let paramArray = [] as any
 
-        if (contractParams) {
-            for (let i=0; i < contractParams?.length; i++) {
-                const paramType = contractParams[i].type
-                const paramName = contractParams[i].name
-                const paramValue = invokeParams[paramName]
 
-                if (paramType === "Hash160") {
-                    if (paramValue === "@me") {
-                        paramArray.push({type: "Address", value: senderAddress})
-                    } else if (/^N[A-Za-z0-9]{34}$/.test(paramValue)) {
-                        paramArray.push({type: "Address", value: paramValue})
+        if (testMode) {
+            if (contractParams) {
+                for (let i=0; i < contractParams?.length; i++) {
+                    const paramType = contractParams[i].type
+                    const paramName = contractParams[i].name
+                    const paramValue = invokeParams[paramName]
+    
+                    if (paramType === "Hash160") {
+                        if (paramValue === "@me") {
+                            paramArray.push({type: paramType, value: wallet.getScriptHashFromAddress(senderAddress)})
+                        } else if (/^N[A-Za-z0-9]{34}$/.test(paramValue)) {
+                            paramArray.push({type: paramType, value: wallet.getScriptHashFromAddress(paramValue)})
+                        } else {
+                            paramArray.push({type: paramType, value: paramValue})
+                        }
                     } else {
-                        paramArray.push({type: "ScriptHash", value: paramValue})
+                        paramArray.push({type: paramType, value: paramValue})
                     }
-                } else {
-                    paramArray.push({type: paramType, value: paramValue})
                 }
             }
-        }
-        if (testMode) {
             const resp = await n3Helper.testInvoke(contractHash, methodName, paramArray)
             return resp
         } else {
+            if (contractParams) {
+                for (let i=0; i < contractParams?.length; i++) {
+                    const paramType = contractParams[i].type
+                    const paramName = contractParams[i].name
+                    const paramValue = invokeParams[paramName]
+    
+                    if (paramType === "Hash160") {
+                        if (paramValue === "@me") {
+                            paramArray.push({type: "Address", value: senderAddress})
+                        } else if (/^N[A-Za-z0-9]{34}$/.test(paramValue)) {
+                            paramArray.push({type: "Address", value: paramValue})
+                        } else {
+                            paramArray.push({type: "ScriptHash", value: paramValue})
+                        }
+                    } else {
+                        paramArray.push({type: paramType, value: paramValue})
+                    }
+                }
+            }
             const resp = await walletConnectCtx.rpcRequest({
                 method: 'invokefunction',
                 params: [contractHash, methodName, paramArray],

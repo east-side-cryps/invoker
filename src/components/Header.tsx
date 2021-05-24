@@ -45,7 +45,7 @@ export default function Header() {
                 <Flex align="center">
                     <InvokeIcon boxSize={["2rem", "2.5rem"]} mr={["0.3rem", "1rem"]} color="#004e87"/>
                     <Text display={['none', 'block']} color="#004e87" fontSize="2.2rem" fontWeight="bold">
-                        Invoker
+                        N3 Invoker
                     </Text>
                 </Flex>
             </RLink>

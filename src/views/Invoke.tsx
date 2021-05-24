@@ -133,6 +133,10 @@ export default function Invoke() {
         } else {
             const txId = await invoke()
             if (!txId) return
+            if (txId.length !== 66) {
+                console.log("Got unexpected response: " + txId )
+                return
+            }
             toast({
                 title: `Relayed ${txId.slice(0,50)} ${txId.slice(50)}`,
                 status: "success",
@@ -196,6 +200,13 @@ export default function Invoke() {
                             paramArray.push({type: paramType, value: wallet.getScriptHashFromAddress(paramValue)})
                         } else {
                             paramArray.push({type: paramType, value: paramValue})
+                        }
+                    } else if (paramType === "Boolean") {
+                        if (paramValue === "false" || paramValue === "False" ||
+                        paramValue === "" || paramValue === "0") {
+                            paramArray.push({type: paramType, value: false})
+                        } else {
+                            paramArray.push({type: paramType, value: true})
                         }
                     } else {
                         paramArray.push({type: paramType, value: paramValue})
